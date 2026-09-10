@@ -1,0 +1,78 @@
+diff --git "a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js" "b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"
+index b819f84..f7f54bc 100644
+--- "a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	
++++ "b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	
+@@ -1,8 +1,8 @@
+ import { launchEnvironmentOf } from "@deepseek-ai/dsh-launch-environment";
+-import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadRequestImagesWithPolicy, requestImageHandleText, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
++import { CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertUsableApiKey, attributionHeaders, contentHasImage, contentHasVideo, isContextWindowExceededError, isQuotaExceededError, normalizeApiKey, offloadRequestImagesWithPolicy, requestImageHandleText, resolveRetryPolicy } from "@deepseek-ai/dsh-llm";
+ import { deepEqualJson, installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
+ import { createModels, createProvider, getSupportedThinkingLevels, isContextOverflow } from "@earendil-works/pi-ai";
+ import { MAX_TIMER_DELAY_MS, idleWatchdog, timeoutOf } from "@deepseek-ai/dsh-timeout";
+ import z from "@deepseek-ai/schemastery";
+ import { credentialKey, credentialKeyId, credentialKeyScope, credentialRef, isCredentialKeySegment, isCredentialRefName } from "@deepseek-ai/dsh-credentials";
+ import { builtinProviders, getBuiltinModels, getBuiltinProviders } from "@earendil-works/pi-ai/providers/all";
+@@ -269,13 +269,14 @@ const NO_COST = {
+ 	cacheRead: 0,
+ 	cacheWrite: 0
+ };
+ /** Every request modality a profile may declare. */
+ const MODALITIES = Object.keys({
+ 	text: true,
+-	image: true
++	image: true,
++	video: true
+ });
+ /**
+ * One entry's modality list, or `undefined` when it states no answer. Absent
+ * and empty mean the same thing — `[]` describes a model that accepts nothing
+ * and could serve no request — which is what makes an entry naming a catalog
+ * model without declaring modalities keep the catalog's, since the config
+@@ -1088,12 +1089,20 @@ async function userContent(blocks, requestImages) {
+ 				type: "image",
+ 				data: Buffer.from(version.data).toString("base64"),
+ 				mimeType: version.mediaType
+ 			});
+ 			break;
+ 		}
++		case "video": {
++			// video 块携带 URL（data URL 或外部 URL），直接透传
++			content.push({
++				type: "video_url",
++				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
++			});
++			break;
++		}
+ 		case "tool-result":
+ 			{
+ 				const nested = await userContent(block.content, requestImages);
+ 				if (typeof nested === "string") {
+ 					if (nested.length > 0) content.push({
+ 						type: "text",
+@@ -1715,23 +1724,25 @@ var PiAiAdapter = class extends LlmAdapter {
+ 			const consumer = new AbortController();
+ 			const upstream = options.signal === void 0 ? consumer.signal : AbortSignal.any([options.signal, consumer.signal]);
+ 			const streamIdleTimeoutMs = profile.streamIdleTimeoutMs;
+ 			const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, streamIdleTimeoutMs, "LLM_STREAM_IDLE_TIMEOUT"), false);
+ 			try {
+ 				const containsImage = options.messages.some((message) => contentHasImage(message.content));
++				const containsVideo = options.messages.some((message) => contentHasVideo(message.content));
+ 				if (containsImage && !model.input.includes("image")) throw new LlmError(`pi-ai model "${model.id}" does not support image input`, "UNSUPPORTED_CONTENT");
++				if (containsVideo && !model.input.includes("video")) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
+ 				const attachments = containsImage ? this.config.resolveAttachments?.() : void 0;
+ 				if (containsImage && attachments === void 0) throw new LlmError("pi-ai image input requires the durable attachment service", "UNSUPPORTED_CONTENT");
+ 				const onReplayDegrade = (reason) => {
+ 					this.config.onReplayDegrade?.({
+ 						provider: options.provider,
+ 						model: options.model,
+ 						reason
+ 					});
+ 				};
+-				const context = attachments === void 0 ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
++				const context = (attachments === void 0 && !containsVideo) ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
+ 					...options,
+ 					signal: watchdog.signal
+ 				}, attachments, onReplayDegrade, profile.maxRequestImageBytes, {
+ 					maxPixels: profile.requestImagePixelBudget,
+ 					maxBytes: profile.requestImageMaxBytes
+ 				});

@@ -1,0 +1,71 @@
+diff --git "a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js" "b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"
+index 2d2bd46..480af8b 100644
+--- "a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	
++++ "b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	
+@@ -1251,12 +1251,47 @@ function textOnlyContext(options, onReplayDegrade) {
+ 			isError: result.isError ?? false,
+ 			timestamp: 0
+ 		});
+ 	}
+ 	return piContext(options, messages);
+ }
++// P25: gateway body-size guard — only the most recent inline video keeps its
++// data URL; earlier ones degrade to text notes (same pattern as image offload),
++// so multi-video histories stay within the gateway read-body limit.
++function __p25OffloadOldVideos(messages) {
++	let changed = false;
++	const out = new Array(messages.length);
++	let keptNewest = false;
++	for (let mi = messages.length - 1; mi >= 0; mi--) {
++		const msg = messages[mi];
++		const blocks = Array.isArray(msg?.content) ? msg.content : null;
++		if (!blocks) { out[mi] = msg; continue; }
++		let msgChanged = false;
++		const nb = blocks.slice();
++		for (let bi = nb.length - 1; bi >= 0; bi--) {
++			const b = nb[bi];
++			if (b?.type === "video") {
++				if (!keptNewest) { keptNewest = true; continue; }
++				nb[bi] = { type: "text", text: "[earlier video omitted to keep the request within gateway limits]" };
++				msgChanged = true;
++			} else if (b?.type === "tool-result" && Array.isArray(b.content)) {
++				for (let ci = b.content.length - 1; ci >= 0; ci--) {
++					const c = b.content[ci];
++					if (c?.type === "video") {
++						if (!keptNewest) { keptNewest = true; continue; }
++						if (!msgChanged) { nb[bi] = { ...b, content: b.content.slice() }; msgChanged = true; }
++						nb[bi].content[ci] = { type: "text", text: "[earlier video omitted to keep the request within gateway limits]" };
++					}
++				}
++			}
++		}
++		if (msgChanged) { changed = true; out[mi] = { ...msg, content: nb }; } else out[mi] = msg;
++	}
++	return changed ? out : messages;
++}
++
+ function toPiContext(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy, videoToFrames = false) {
+ 	return attachments === void 0 ? textOnlyContext(options, onReplayDegrade) : toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy, videoToFrames);
+ }
+ async function toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy = { /*P20*/
+ 	maxPixels: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
+ 	maxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES
+@@ -1806,14 +1841,17 @@ var PiAiAdapter = class extends LlmAdapter {
+ 					this.config.onReplayDegrade?.({
+ 						provider: options.provider,
+ 						model: options.model,
+ 						reason
+ 					});
+ 				};
++				// P25: keep only the newest inline video data URL within the request body
++				let p25Messages = options.messages;
++				if (containsVideo) p25Messages = __p25OffloadOldVideos(options.messages);
+ 				const context = (attachments === void 0 && !containsVideo) ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
+-					...options,
++					...options, messages: p25Messages,
+ 					signal: watchdog.signal
+ 				}, attachments === void 0 && containsVideo ? {} : attachments, onReplayDegrade, profile.maxRequestImageBytes, {
+ 					maxPixels: profile.requestImagePixelBudget,
+ 					maxBytes: profile.requestImageMaxBytes
+ 				}, videoToFrames);
+ 				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {

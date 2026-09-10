@@ -1,0 +1,151 @@
+diff --git "a/@deepseek-ai/dsh-tool-fs/lib/index.js" "b/@deepseek-ai/dsh-tool-fs/lib/index.js"
+index e720306..6b216bb 100644
+--- "a/@deepseek-ai/dsh-tool-fs/lib/index.js"	
++++ "b/@deepseek-ai/dsh-tool-fs/lib/index.js"	
+@@ -862,18 +862,23 @@ function applyEditTool(ctx, sandbox) {
+ /** Extensions `read_image` accepts; magic-byte validation at the attachment service stays authoritative. */
+ const IMAGE_EXTENSIONS = {
+ 	".png": "image/png",
+ 	".jpg": "image/jpeg",
+ 	".jpeg": "image/jpeg",
+ 	".webp": "image/webp",
+-	".gif": "image/gif"
++	".gif": "image/gif",
++	".mp4": "video/mp4",
++	".webm": "video/webm",
++	".mov": "video/quicktime",
++	".avi": "video/x-msvideo",
++	".mpeg": "video/mpeg",
++	".mpg": "video/mpeg"
+ };
+ const IMAGE_VALUE_SCHEMA = {
+ 	type: "object",
+ 	additionalProperties: false,
+-	required: true,
+ 	properties: {
+ 		attachmentId: {
+ 			type: "string",
+ 			required: true
+ 		},
+ 		mediaType: {
+@@ -928,12 +933,22 @@ function imageMediaTypeForPath(filePath) {
+ * session's latest routed provider/model (request header config, then agent
+ * options) and requires the exact resolved route to declare `image` input explicitly.
+ * @param ctx - the plugin context used to resolve the optional `llm` service.
+ * @param exec - the tool-execution context supplying the calling agent.
+ * @param requestedPath - the raw, not-yet-resolved path rendered in refusal messages.
+ */
++async function assertVideoCapableRoute(ctx, exec, requestedPath) {
++	const routed = exec.agent?.session.requestHeader()?.config;
++	const provider = routed?.provider ?? exec.agent?.options.provider;
++	const model = routed?.model ?? exec.agent?.options.model;
++	const llm = ctx.get("llm");
++	if (provider === void 0 || model === void 0 || llm === void 0) throw new Error(`cannot read "${requestedPath}" as a video: the current model route could not be resolved`);
++	const active = await llm.resolveModelInfo(provider, model, exec.signal);
++	if (active.inputModalities === void 0 || !active.inputModalities.includes("video")) throw new Error(`cannot read "${requestedPath}" as a video: model "${model}" does not declare video input; switch to a video-capable model to read videos`);
++}
++
+ async function assertImageCapableRoute(ctx, exec, requestedPath) {
+ 	const routed = exec.agent?.session.requestHeader()?.config;
+ 	const provider = routed?.provider ?? exec.agent?.options.provider;
+ 	const model = routed?.model ?? exec.agent?.options.model;
+ 	const llm = ctx.get("llm");
+ 	if (provider === void 0 || model === void 0 || llm === void 0) throw new Error(`cannot read "${requestedPath}" as an image: the current model route could not be resolved`);
+@@ -982,12 +997,24 @@ ${image.mediaType} image, ${image.width}x${image.height} px, ${image.bytes} byte
+ /**
+ * Project one structured image read into its model-facing envelope and image.
+ * @param value - the image-read outcome.
+ * @returns the two content blocks used by native and nested dispatches.
+ */
+ function imageReadContent(value) {
++	if (value.video !== void 0) {
++		// P21: video block passthrough (native video_url for video-declaring models, P20 frames fallback otherwise)
++		return [{
++			type: "text",
++			text: `[video file: ${value.path}${value.video.name ? " — " + value.video.name : ""}]`
++		}, {
++			type: "video",
++			mediaType: value.video.mediaType,
++			url: value.video.url,
++			...value.video.name === void 0 ? {} : { name: value.video.name }
++		}];
++	}
+ 	return [{
+ 		type: "text",
+ 		text: formatImageReadOutput(value.path, value.image)
+ 	}, {
+ 		type: "image",
+ 		attachment: imageRefFromValue(value.image)
+@@ -1002,44 +1029,69 @@ function imageReadContent(value) {
+ * @param ctx - the registration scope; execution uses its `fs` service plus
+ *   the optional `attachments`/`llm` services.
+ */
+ function applyReadImageTool(ctx) {
+ 	ctx.tools.register(defineTool({
+ 		name: "read_image",
+-		description: "Read a PNG/JPEG/WebP/GIF file and return the image itself. Harness validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input.",
++		description: "Read a PNG/JPEG/WebP/GIF file or an MP4/WebM/MOV video file and return the image/video itself. Harness validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input.",
+ 		parameters: { file_path: {
+ 			type: "string",
+ 			required: true,
+ 			description: "Path to the image file, resolved by the filesystem backend."
+ 		} },
+ 		output: {
+ 			schema: {
+ 				type: "object",
+-				additionalProperties: false,
++				additionalProperties: true,
+ 				properties: {
+ 					path: {
+ 						type: "string",
+ 						required: true
+ 					},
++					video: {
++						type: "object",
++						additionalProperties: true,
++						properties: {
++							mediaType: { type: "string" },
++							url: { type: "string" },
++							name: { type: "string" }
++						}
++					},
+ 					image: IMAGE_VALUE_SCHEMA
+ 				}
+ 			},
+ 			render: (_args, value) => imageReadContent(value)
+ 		},
+ 		isConcurrencySafe: () => true,
+ 		async execute(args, exec) {
+ 			if (args.file_path.trim().length === 0) throw new Error("file_path must be a non-empty string");
+ 			const mediaType = imageMediaTypeForPath(args.file_path);
+-			if (mediaType === void 0) throw new Error(`cannot read "${args.file_path}": read_image only accepts PNG/JPEG/WebP/GIF paths`);
++			if (mediaType === void 0) throw new Error(`cannot read "${args.file_path}": read_image only accepts PNG/JPEG/WebP/GIF or MP4/WebM/MOV/AVI/MPEG video paths`);
+ 			const attachments = ctx.get("attachments");
+ 			if (attachments === void 0) throw new Error(`cannot read "${args.file_path}" as an image: no attachment service is mounted`);
++			if (mediaType.startsWith("video/")) {
++				// P21: video files require a video-declaring model route instead of the image gate
++				await assertVideoCapableRoute(ctx, exec, args.file_path);
++			} else {
+ 			if (!attachments.imageLimits.mediaTypes.includes(mediaType)) throw new Error(`cannot read "${args.file_path}": ${mediaType} images are not accepted by this deployment`);
+ 			await assertImageCapableRoute(ctx, exec, args.file_path);
++			}
+ 			const { target, info } = await resolveRegularReadTarget(ctx, exec, args.file_path);
+ 			const byteCap = Math.min(attachments.imageLimits.maxImageBytes, attachments.imageLimits.maxMessageImageBytes);
+ 			const data = await ctx.fs.readBytes(target, exec.signal, byteCap);
++			if (mediaType.startsWith("video/")) {
++				// P21: video wire form — data URL on the block, same shape the UI composer emits
++				return {
++					path: target.displayPath,
++					video: {
++						mediaType,
++						url: "data:" + mediaType + ";base64," + data.toString("base64"),
++						name: basename(target.displayPath)
++					}
++				};
++			}
+ 			let ref;
+ 			try {
+ 				ref = await attachments.saveImage({
+ 					data,
+ 					mediaType,
+ 					name: basename(target.displayPath)

@@ -1,0 +1,59 @@
+diff --git "a/@earendil-works/pi-ai/dist/api/openai-responses-shared.js" "b/@earendil-works/pi-ai/dist/api/openai-responses-shared.js"
+index 254156f..55110bb 100644
+--- "a/@earendil-works/pi-ai/dist/api/openai-responses-shared.js"	
++++ "b/@earendil-works/pi-ai/dist/api/openai-responses-shared.js"	
+@@ -30,25 +30,33 @@ function parseTextSignature(signature) {
+             // Fall through to legacy plain-string handling.
+         }
+     }
+     return { id: signature };
+ }
+ function convertToolResultOutput(model, content) {
++    const videos = content.filter((c) => c.type === "video_url" && model.input.includes("video"));
+     const textResult = content
+         .filter((c) => c.type === "text")
+         .map((c) => c.text)
+         .join("\n");
+     const images = content.filter((c) => c.type === "image");
+     const hasText = textResult.length > 0;
+-    if (images.length === 0 || !model.input.includes("image")) {
++    if (videos.length === 0 && (images.length === 0 || !model.input.includes("image"))) {
+         return sanitizeSurrogates(hasText ? textResult : images.length > 0 ? "(see attached image)" : "(no tool output)");
+     }
+     const output = [];
+     if (hasText) {
+         output.push({ type: "input_text", text: sanitizeSurrogates(textResult) });
+     }
++    for (const video of videos) {
++        // P22: native video passthrough for video-declaring models
++        output.push({
++            type: "video_url",
++            video_url: video.video_url,
++        });
++    }
+     for (const image of images) {
+         output.push({
+             type: "input_image",
+             detail: "auto",
+             image_url: `data:${image.mimeType};base64,${image.data}`,
+         });
+@@ -109,12 +117,19 @@ export function convertResponsesMessages(model, context, allowedToolCallProvider
+                     if (item.type === "text") {
+                         return {
+                             type: "input_text",
+                             text: sanitizeSurrogates(item.text),
+                         };
+                     }
++                    if (item.type === "video_url") {
++                        // P22: pass video_url through natively (video-declaring models only reach this path)
++                        return {
++                            type: "video_url",
++                            video_url: item.video_url,
++                        };
++                    }
+                     return {
+                         type: "input_image",
+                         detail: "auto",
+                         image_url: `data:${item.mimeType};base64,${item.data}`,
+                     };
+                 });

@@ -1,0 +1,49 @@
+diff --git "a/@earendil-works/pi-ai/dist/api/openai-completions.js" "b/@earendil-works/pi-ai/dist/api/openai-completions.js"
+index 3a3f40f..5eb3667 100644
+--- "a/@earendil-works/pi-ai/dist/api/openai-completions.js"	
++++ "b/@earendil-works/pi-ai/dist/api/openai-completions.js"	
+@@ -956,12 +956,13 @@ export function convertMessages(model, context, compat, options) {
+                 // Extract text and image content
+                 const textResult = toolMsg.content
+                     .filter(isTextContentBlock)
+                     .map((block) => block.text)
+                     .join("\n");
+                 const hasImages = toolMsg.content.some((c) => c.type === "image");
++                const hasVideos = toolMsg.content.some((c) => c.type === "video_url");
+                 // Always send tool result with text (or placeholder if only images)
+                 const hasText = textResult.length > 0;
+                 const toolResultText = hasText ? textResult : hasImages ? "(see attached image)" : "(no tool output)";
+                 // Some providers require the 'name' field in tool results
+                 const toolResultMsg = {
+                     role: "tool",
+@@ -974,22 +975,29 @@ export function convertMessages(model, context, compat, options) {
+                 params.push(toolResultMsg);
+                 if (compat.deferredToolsMode === "kimi") {
+                     for (const name of toolMsg.addedToolNames ?? []) {
+                         deferredToolNames.add(name);
+                     }
+                 }
+-                if (hasImages && model.input.includes("image")) {
++                if ((hasImages && model.input.includes("image")) || (hasVideos && model.input.includes("video"))) {
+                     for (const block of toolMsg.content) {
+                         if (isImageContentBlock(block)) {
+                             imageBlocks.push({
+                                 type: "image_url",
+                                 image_url: {
+                                     url: `data:${block.mimeType};base64,${block.data}`,
+                                 },
+                             });
+                         }
++                         else if (block.type === "video_url") {
++                        	// P23: video blocks from tool results ride the same follow-up user message
++                        	imageBlocks.push({
++                        		type: "video_url",
++                        		video_url: block.video_url,
++                        	});
++                        }
+                     }
+                 }
+             }
+             i = j - 1;
+             if (imageBlocks.length > 0) {
+                 if (compat.requiresAssistantAfterToolResult) {

@@ -1,0 +1,24 @@
+diff --git "a/@deepseek-ai/dsh-llm-deepseek/lib/index.js" "b/@deepseek-ai/dsh-llm-deepseek/lib/index.js"
+index 74fcc55..4f131c0 100644
+--- "a/@deepseek-ai/dsh-llm-deepseek/lib/index.js"	
++++ "b/@deepseek-ai/dsh-llm-deepseek/lib/index.js"	
+@@ -84,12 +84,19 @@ async function contentParts(blocks, images, message, nextImage) {
+ 			nextImage.value += 1;
+ 			parts.push(...await imageParts(block, images, {
+ 				message,
+ 				image: nextImage.value
+ 			}, parts.length > 0));
+ 			break;
++		case "video":
++			// video 块携带 URL（data URL 或外部 URL）→ wire 的 video_url part
++			parts.push({
++				type: "video_url",
++				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
++			});
++			break;
+ 		case "tool-result":
+ 			parts.push(...await contentParts(block.content, images, message, nextImage));
+ 			break;
+ 		default: break;
+ 	}
+ 	return parts;

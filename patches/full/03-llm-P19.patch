@@ -1,0 +1,29 @@
+diff --git "a/@deepseek-ai/dsh-llm/lib/index.js" "b/@deepseek-ai/dsh-llm/lib/index.js"
+index 61e6d90..29920f5 100644
+--- "a/@deepseek-ai/dsh-llm/lib/index.js"	
++++ "b/@deepseek-ai/dsh-llm/lib/index.js"	
+@@ -608,12 +608,15 @@ function requestImageHandleText(version) {
+ * @param content - typed model content blocks.
+ * @returns whether any nested block is an image.
+ */
+ function contentHasImage(content) {
+ 	return content.some((block) => block.type === "image" || block.type === "tool-result" && contentHasImage(block.content));
+ }
++function contentHasVideo(content) {
++	return content.some((block) => block.type === "video" || block.type === "tool-result" && contentHasVideo(block.content));
++}
+ /** Base64 length of raw image bytes, including padding. */
+ function base64Length(bytes) {
+ 	return Math.ceil(bytes / 3) * 4;
+ }
+ /** Collect represented image lengths in request and nested-block order. */
+ function collectImageLengths(blocks, lengths, policy) {
+@@ -1652,7 +1655,7 @@ function adapterFailureChunk(error, signal) {
+ 			kind: "error",
+ 			failure
+ 		}
+ 	};
+ }
+ //#endregion
+-export { APP_IDENTITY, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, HarnessError, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, LlmRuntime, LlmRuntime as default, MessageId, OFFLOADED_IMAGE_TEXT, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertNever, assertUsableApiKey, attributionHeaders, boundContextSummary, callConfigEquals, contentHasImage, createAssistantMessage, createMessage, createToolResultMessage, createUserMessage, deepFreeze, errorChain, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, markAgentLoopRequest, normalizeApiKey, offloadRequestImages, offloadRequestImagesWithPolicy, projectImagesForTextModel, requestImageHandleText, resolveRetryPolicy, textOnlyImageText, userAgent };
++export { APP_IDENTITY, BlockAssembler, CONTEXT_SUMMARY_MAX_CHARS, CONTEXT_WINDOW_EXCEEDED_CODE, CallId, EMPTY_RESPONSE_CODE, HarnessError, INVALID_CREDENTIAL_CODE, LlmAdapter, LlmError, LlmRuntime, LlmRuntime as default, MessageId, OFFLOADED_IMAGE_TEXT, ProviderRequestId, QUOTA_EXCEEDED_CODE, ReasoningEffortId, RetryPolicySchema, assertNever, assertUsableApiKey, attributionHeaders, boundContextSummary, callConfigEquals, contentHasImage, contentHasVideo, createAssistantMessage, createMessage, createToolResultMessage, createUserMessage, deepFreeze, errorChain, freezeMessage, isAgentLoopRequest, isContextWindowExceededError, isHarnessError, isQuotaExceededError, isTokenDelta, markAgentLoopRequest, normalizeApiKey, offloadRequestImages, offloadRequestImagesWithPolicy, projectImagesForTextModel, requestImageHandleText, resolveRetryPolicy, textOnlyImageText, userAgent };

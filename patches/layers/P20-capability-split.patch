@@ -1,0 +1,202 @@
+diff --git "a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js" "b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"
+index f7f54bc..2d2bd46 100644
+--- "a/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	
++++ "b/@deepseek-ai/dsh-llm-pi-ai/lib/index.js"	
+@@ -1064,16 +1064,80 @@ function flattenText(message) {
+ }
+ /** Flatten text recursively inside one tool result. */
+ function toolResultText(blocks) {
+ 	return blocks.map((block) => block.type === "text" ? block.text : block.type === "tool-result" ? toolResultText(block.content) : "").join("");
+ }
+ /** Reject image roles that pi-ai cannot replay before request-size offloading can replace them. */
++// P20-BEGIN: video -> frames fallback (image-only upstreams, e.g. bai glm-5.3-flash)
++const P20_MAX_FRAMES = 10;
++async function videoBlockToImageBlocks(block) {
++	const fsN = await import("node:fs");
++	const pathMod = await import("node:path");
++	const osMod = await import("node:os");
++	const cpMod = await import("node:child_process");
++	const url = block.url ?? block.attachment?.url ?? "";
++	const mediaType = block.mediaType ?? block.attachment?.mediaType ?? "video/mp4";
++	let dataBuf;
++	if (url.startsWith("data:")) {
++		dataBuf = Buffer.from(url.slice(url.indexOf(",") + 1), "base64");
++	} else if (/^https?:\/\//i.test(url)) {
++		const res = await fetch(url);
++		if (!res.ok) throw new LlmError(`video frame extraction: fetch ${url} -> HTTP ${res.status}`, "UNSUPPORTED_CONTENT");
++		dataBuf = Buffer.from(await res.arrayBuffer());
++	} else if (url && fsN.existsSync(url)) {
++		dataBuf = fsN.readFileSync(url);
++	} else {
++		throw new LlmError("video frame extraction: video block has no usable url", "UNSUPPORTED_CONTENT");
++	}
++	const dirs = [];
++	const seen = new Set();
++	for (const d of (process.env.PATH || "").split(";")) if (d && !seen.has(d)) { seen.add(d); dirs.push(d); }
++	try {
++		const pkgRoot = pathMod.join(process.env.LOCALAPPDATA ?? "", "Microsoft", "WinGet", "Packages");
++		if (fsN.existsSync(pkgRoot)) for (const entry of fsN.readdirSync(pkgRoot)) if (/^Gyan\.FFmpeg/i.test(entry)) dirs.push(pathMod.join(pkgRoot, entry));
++	} catch {}
++	let ffmpeg = null;
++	for (const dir of dirs) {
++		for (const c of [pathMod.join(dir, "ffmpeg.exe"), pathMod.join(dir, "bin", "ffmpeg.exe")]) if (fsN.existsSync(c)) { ffmpeg = c; break; }
++		if (ffmpeg) break;
++	}
++	if (!ffmpeg) throw new LlmError("video frame extraction: ffmpeg.exe not found on PATH or WinGet location", "UNSUPPORTED_CONTENT");
++	const tmpDir = await fsN.promises.mkdtemp(pathMod.join(osMod.tmpdir(), "dsh-video-frames-"));
++	try {
++		const ext = mediaType.includes("webm") ? ".webm" : mediaType.includes("quicktime") || mediaType.includes("mov") ? ".mov" : ".mp4";
++		const inPath = pathMod.join(tmpDir, "input" + ext);
++		await fsN.promises.writeFile(inPath, dataBuf);
++		const framePat = pathMod.join(tmpDir, "f-%04d.png");
++		await new Promise((resolve, reject) => {
++			const child = cpMod.spawn(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", inPath, "-vf", "fps=1,scale=w='min(iw,1280)':h=-2", "-frames:v", "64", framePat], { stdio: ["ignore", "ignore", "ignore"], windowsHide: true });
++			child.on("error", reject);
++			child.on("close", (code) => code === 0 ? resolve() : reject(new LlmError(`ffmpeg frame extraction failed (exit ${code})`, "UNSUPPORTED_CONTENT")));
++		});
++		let frames = fsN.readdirSync(tmpDir).filter((x) => x.startsWith("f-") && x.endsWith(".png")).sort();
++		if (frames.length === 0) throw new LlmError("ffmpeg frame extraction produced no frames", "UNSUPPORTED_CONTENT");
++		if (frames.length > P20_MAX_FRAMES) {
++			const picked = [];
++			for (let i = 0; i < P20_MAX_FRAMES; i++) picked.push(frames[Math.round(i * (frames.length - 1) / (P20_MAX_FRAMES - 1))]);
++			frames = [...new Set(picked)];
++		}
++		const out = [];
++		for (let i = 0; i < frames.length; i++) {
++			const data = fsN.readFileSync(pathMod.join(tmpDir, frames[i]));
++			out.push({ type: "text", text: `[video ${block.name ?? ""} — frame ${i + 1}/${frames.length}, t≈${i}s]`.trim() });
++			out.push({ type: "image", data: data.toString("base64"), mimeType: "image/png" });
++		}
++		return out;
++	} finally {
++		try { fsN.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
++	}
++}
++// P20-END
+ function assertSupportedImageRoles(messages) {
+ 	for (const message of messages) if (message.role !== "user" && contentHasImage(message.content)) throw new LlmError(`pi-ai cannot represent an image in an in-history ${message.role} message`, "UNSUPPORTED_CONTENT");
+ }
+-async function userContent(blocks, requestImages) {
++async function userContent(blocks, requestImages, videoToFrames = false) {
+ 	const content = [];
+ 	for (const block of blocks) switch (block.type) {
+ 		case "text":
+ 			if (block.text.length > 0) content.push({
+ 				type: "text",
+ 				text: block.text
+@@ -1090,22 +1154,27 @@ async function userContent(blocks, requestImages) {
+ 				data: Buffer.from(version.data).toString("base64"),
+ 				mimeType: version.mediaType
+ 			});
+ 			break;
+ 		}
+ 		case "video": {
+-			// video 块携带 URL（data URL 或外部 URL），直接透传
+-			content.push({
+-				type: "video_url",
+-				video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
+-			});
++			if (videoToFrames) {
++				// P20: 目标模型不支持 video 输入 → ffmpeg 抽帧降级为多图输入
++				content.push(...await videoBlockToImageBlocks(block));
++			} else {
++				// video 块携带 URL（data URL 或外部 URL），直接透传
++				content.push({
++					type: "video_url",
++					video_url: { url: block.url ?? block.attachment?.url ?? block.attachment?.attachmentId ?? '' }
++				});
++			}
+ 			break;
+ 		}
+ 		case "tool-result":
+ 			{
+-				const nested = await userContent(block.content, requestImages);
++				const nested = await userContent(block.content, requestImages, videoToFrames);
+ 				if (typeof nested === "string") {
+ 					if (nested.length > 0) content.push({
+ 						type: "text",
+ 						text: nested
+ 					});
+ 				} else content.push(...nested);
+@@ -1182,19 +1251,19 @@ function textOnlyContext(options, onReplayDegrade) {
+ 			isError: result.isError ?? false,
+ 			timestamp: 0
+ 		});
+ 	}
+ 	return piContext(options, messages);
+ }
+-function toPiContext(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy) {
+-	return attachments === void 0 ? textOnlyContext(options, onReplayDegrade) : toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy);
++function toPiContext(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy, videoToFrames = false) {
++	return attachments === void 0 ? textOnlyContext(options, onReplayDegrade) : toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy, videoToFrames);
+ }
+-async function toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy = {
++async function toPiContextWithImages(options, attachments, onReplayDegrade, maxRequestImageBytes, requestImagePolicy = { /*P20*/
+ 	maxPixels: DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET,
+ 	maxBytes: DEFAULT_REQUEST_IMAGE_MAX_BYTES
+-}) {
++}, videoToFrames = false) {
+ 	assertSupportedImageRoles(options.messages);
+ 	const requestMessages = offloadRequestImagesWithPolicy(options.messages, {
+ 		representation: "base64",
+ 		...maxRequestImageBytes === void 0 ? {} : { maxBytes: maxRequestImageBytes },
+ 		byteQuantum: 1,
+ 		byteLength: (ref) => Math.min(ref.bytes, requestImagePolicy.maxBytes)
+@@ -1220,21 +1289,21 @@ async function toPiContextWithImages(options, attachments, onReplayDegrade, maxR
+ 		if (message.role === "assistant") {
+ 			const assistant = toPiAssistant(message, onReplayDegrade);
+ 			for (const block of assistant.content) if (block.type === "toolCall") toolNames.set(CallId(block.id), block.name);
+ 			messages.push(assistant);
+ 			continue;
+ 		}
+-		const content = await userContent(message.content.filter((block) => block.type !== "tool-result"), requestImages);
++		const content = await userContent(message.content.filter((block) => block.type !== "tool-result"), requestImages, videoToFrames);
+ 		const results = message.content.filter((block) => block.type === "tool-result");
+ 		if (content.length > 0 || results.length === 0) messages.push({
+ 			role: "user",
+ 			content,
+ 			timestamp: 0
+ 		});
+ 		for (const result of results) {
+-			const resultContent = await userContent(result.content, requestImages);
++			const resultContent = await userContent(result.content, requestImages, videoToFrames);
+ 			messages.push({
+ 				role: "toolResult",
+ 				toolCallId: result.toolCallId,
+ 				toolName: toolNames.get(result.toolCallId) ?? "unknown",
+ 				content: typeof resultContent === "string" ? [{
+ 					type: "text",
+@@ -1726,29 +1795,30 @@ var PiAiAdapter = class extends LlmAdapter {
+ 			const streamIdleTimeoutMs = profile.streamIdleTimeoutMs;
+ 			const watchdog = __addDisposableResource(env_1, idleWatchdog(upstream, streamIdleTimeoutMs, "LLM_STREAM_IDLE_TIMEOUT"), false);
+ 			try {
+ 				const containsImage = options.messages.some((message) => contentHasImage(message.content));
+ 				const containsVideo = options.messages.some((message) => contentHasVideo(message.content));
+ 				if (containsImage && !model.input.includes("image")) throw new LlmError(`pi-ai model "${model.id}" does not support image input`, "UNSUPPORTED_CONTENT");
+-				if (containsVideo && !model.input.includes("video")) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
++				const videoToFrames = containsVideo && !model.input.includes("video") && model.input.includes("image");
++				if (containsVideo && !videoToFrames && !model.input.includes("video")) throw new LlmError(`pi-ai model "${model.id}" does not support video input`, "UNSUPPORTED_CONTENT");
+ 				const attachments = containsImage ? this.config.resolveAttachments?.() : void 0;
+ 				if (containsImage && attachments === void 0) throw new LlmError("pi-ai image input requires the durable attachment service", "UNSUPPORTED_CONTENT");
+ 				const onReplayDegrade = (reason) => {
+ 					this.config.onReplayDegrade?.({
+ 						provider: options.provider,
+ 						model: options.model,
+ 						reason
+ 					});
+ 				};
+ 				const context = (attachments === void 0 && !containsVideo) ? toPiContext(options, void 0, onReplayDegrade) : await toPiContext({
+ 					...options,
+ 					signal: watchdog.signal
+-				}, attachments, onReplayDegrade, profile.maxRequestImageBytes, {
++				}, attachments === void 0 && containsVideo ? {} : attachments, onReplayDegrade, profile.maxRequestImageBytes, {
+ 					maxPixels: profile.requestImagePixelBudget,
+ 					maxBytes: profile.requestImageMaxBytes
+-				});
++				}, videoToFrames);
+ 				const iterator = toStreamChunks(snapshot.models.streamSimple(model, context, {
+ 					...profileOptions(profile, reasoning, apiKey),
+ 					...options.temperature === void 0 ? {} : { temperature: options.temperature },
+ 					...options.maxTokens === void 0 ? {} : { maxTokens: options.maxTokens },
+ 					...options.sessionId === void 0 ? {} : { sessionId: String(options.sessionId) },
+ 					signal: watchdog.signal,

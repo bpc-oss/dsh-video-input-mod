@@ -1,0 +1,37 @@
+diff --git "a/@deepseek-ai/dsh-token-meter/lib/index.js" "b/@deepseek-ai/dsh-token-meter/lib/index.js"
+index 4d7fc63..9124382 100644
+--- "a/@deepseek-ai/dsh-token-meter/lib/index.js"	
++++ "b/@deepseek-ai/dsh-token-meter/lib/index.js"	
+@@ -10,12 +10,13 @@ import { z as z$1 } from "zod";
+ * to identical numbers.
+ *
+ * @module @deepseek-ai/dsh-token-meter/estimate
+ */
+ /** Fixed text-density estimate used until exact tokenization is needed. */
+ const CHARS_PER_TOKEN = 4;
++const VIDEO_BLOCK_TOKENS = 4096;
+ /** Per-block structural overhead for JSON framing and type tags. */
+ const BLOCK_OVERHEAD = 4;
+ /**
+ * Price content blocks recursively under the fixed density heuristic.
+ * @param blocks - content blocks to price without mutation.
+ * @returns heuristic tokens including per-block structural overhead.
+@@ -30,12 +31,18 @@ function estimateContent(blocks) {
+ 		case "tool-call":
+ 			tokens += Math.ceil(block.name.length / CHARS_PER_TOKEN) + Math.ceil(block.arguments.length / CHARS_PER_TOKEN) + BLOCK_OVERHEAD;
+ 			break;
+ 		case "tool-result":
+ 			tokens += estimateContent(block.content) + BLOCK_OVERHEAD;
+ 			break;
++		case "video":
++		  // P24: video blocks carry an inline data URL; the upstream ingests the video
++		  // natively (frame-sampled), so price a fixed heuristic instead of counting
++		  // the base64 payload as text tokens.
++		  tokens += VIDEO_BLOCK_TOKENS;
++		  break;
+ 		default: tokens += BLOCK_OVERHEAD + Math.ceil(JSON.stringify(block).length / CHARS_PER_TOKEN);
+ 	}
+ 	return tokens;
+ }
+ /**
+ * Heuristically price one model-visible message.
