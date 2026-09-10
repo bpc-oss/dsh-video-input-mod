@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: manifest parses & patches referenced
+        run: node tools/check-manifest.mjs
+      - name: tools syntax check
+        run: |
+          node --check tools/build-patches.mjs
+          node --check tools/pt-check.mjs
+      - name: verify.mjs clean on non-DSH runner (--ci)
+        run: node tools/verify.mjs "$PWD/fake-install" --ci

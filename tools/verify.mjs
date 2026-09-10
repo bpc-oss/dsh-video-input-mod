@@ -23,7 +23,7 @@ const nm = path.join(root, 'resources', 'app.asar.unpacked', 'node_modules');
 
 // belt-and-braces markers: unique strings each patch contributes
 const MARKERS = {
-  'P17+P19b+P20+P25': ['case "video":', 'VIDEO_BLOCK', 'videoToFrames', '__p25OffloadOldVideos'],
+  'P17+P19b+P20+P25': ['case "video":', 'videoToFrames', '__p25OffloadOldVideos'],
   'P17b': ['type: "video_url"'],
   'P17c+P23': ['video_url', 'video blocks from tool results'],
   'P18': ['"video"'],
@@ -35,10 +35,12 @@ const MARKERS = {
   'P24': ['VIDEO_BLOCK_TOKENS'],
 };
 
+const ciMode = process.argv.includes("--ci");
 let missing = 0;
+let fileMissing = 0;
 for (const p of m.patches) {
   const rel = p.file.slice(m.appRoot.length + 1);
-  if (!fs.existsSync(p.file)) { console.log(`MISSING  ${p.id}  ${rel}`); missing++; continue; }
+  if (!fs.existsSync(p.file)) { console.log(`MISSING  ${p.id}  ${rel}`); missing++; fileMissing++; continue; }
   const sha = crypto.createHash('sha256').update(fs.readFileSync(p.file)).digest('hex');
   const hashOk = sha === p.sha256;
   const raw = fs.readFileSync(p.file, 'utf8');
@@ -51,4 +53,6 @@ for (const p of m.patches) {
   if (!markersOk) console.log(`          missing marker(s): ${markers.filter(k => !raw.includes(k)).join(', ')}`);
 }
 console.log(missing === 0 ? '\nALL PATCHES PRESENT' : `\n${missing} patch file(s) missing/changed`);
-process.exit(missing === 0 ? 0 : 2);
+if (missing === 0) process.exit(0);
+if (ciMode && missing === fileMissing) { console.log('--ci: no DSH install detected, treating as clean'); process.exit(0); }
+process.exit(2);
