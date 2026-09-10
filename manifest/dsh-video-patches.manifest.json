@@ -1,0 +1,124 @@
+{
+  "manifest": "dsh-video-patches",
+  "version": 1,
+  "generatedAt": "2026-09-10T10:10:43.120Z",
+  "appRoot": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules",
+  "appVersion": "2.0.1",
+  "note": "Registry of hand-applied kernel patches enabling native video input. If app.asar.unpacked is overwritten by an update, sha256 mismatches against this manifest identify lost patches; .bak-* siblings hold the pre-patch states for diffing. Settings-side declarations (input:[text,image,video], reasoningEfforts) live in DSH_HOME/settings.yaml and are not hashed here (hot-rewritten by the Models UI).",
+  "verification": {
+    "e2e": "read_image(mp4) -> video block -> video_url wire -> glm/qwen answered red->green->blue; usage delta +582/+1473 tokens proves delivery",
+    "knownLimits": "b.ai glm-5.3-flash upstream pool drops video_url ~75% (retry); tokenrouter responses wire rejects video_url (InputParam serde) and completions upstream drops it 4/4 -> P20 frames only; teamoroute responses passthrough unverified"
+  },
+  "patches": [
+    {
+      "id": "P17+P19b+P20+P25",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js",
+      "sha256": "e7ac3a1417e6afdbf2c45f6d01fa14b880bc21e194d6b4798ff090868f81a285",
+      "bytes": 114914,
+      "mtime": "2026-09-10T09:42:17.920Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js.bak-P20",
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js.bak-P25",
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js.bak-video-20260831"
+      ],
+      "note": "MODALITIES+video case (P17); containsVideo routing (P19b); capability split videoToFrames + nested threading + dispatch fix (P20); gateway body-size guard __p25OffloadOldVideos (P25)"
+    },
+    {
+      "id": "P17b",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-deepseek\\lib\\index.js",
+      "sha256": "2679831a6053ad55c90160a7611b169c1345a1441c5ba2e443457578e74aa1b9",
+      "bytes": 78586,
+      "mtime": "2026-09-09T16:19:43.394Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-deepseek\\lib\\index.js.bak-video-20260831"
+      ],
+      "note": "contentParts case \"video\" -> video_url wire part (deepseek adapter)"
+    },
+    {
+      "id": "P17c+P23",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-completions.js",
+      "sha256": "8b2858ff57885b81b5f0bed24e9ba6ff78524e0b37cd01bc705cfdcfa63076d7",
+      "bytes": 59641,
+      "mtime": "2026-09-10T05:50:05.999Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-completions.js.bak-P23"
+      ],
+      "note": "video_url wire serialization (P17c); tool-result video_url collector riding follow-up user message (P23)"
+    },
+    {
+      "id": "P18",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-host-apiproxy\\lib\\index.js",
+      "sha256": "e5c85d7b767b89ee9b4b8374cc5bedde1f78dde0cf73a893903edbe48df4d165",
+      "bytes": 220300,
+      "mtime": "2026-09-09T16:19:37.740Z",
+      "backups": [],
+      "note": "promptContentPartSchema accepts {type:\"video\", mediaType, url, name} + passthrough"
+    },
+    {
+      "id": "P18b",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-conversation\\lib\\client.js",
+      "sha256": "62e26e5f018077b5d2078ceddef158ba4f8baba9661f1046b48674976747856e",
+      "bytes": 448573,
+      "mtime": "2026-09-09T16:19:41.442Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-conversation\\lib\\client.js.bak-video-20260831"
+      ],
+      "note": "frontend mediaType classify + encodeVideo (data URL video part)"
+    },
+    {
+      "id": "P18c",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-attachment\\lib\\client.js",
+      "sha256": "995c52783a201a85164df4e9287bfab1215381dc36aa1991c371ff0b537c81d7",
+      "bytes": 35491,
+      "mtime": "2026-09-09T16:19:47.424Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-attachment\\lib\\client.js.bak-video-20260831"
+      ],
+      "note": "attachment rail <video> thumbnail"
+    },
+    {
+      "id": "P19",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm\\lib\\index.js",
+      "sha256": "ac191646d81bcdebbffb846b0b7a4213df4ec45b0b177bee40100b1cd53b59a5",
+      "bytes": 71640,
+      "mtime": "2026-09-09T16:19:42.702Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm\\lib\\index.js.bak-video-20260831"
+      ],
+      "note": "contentHasVideo + export (nested tool-result detection)"
+    },
+    {
+      "id": "P21",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-tool-fs\\lib\\index.js",
+      "sha256": "0bcf29b0a432b4f0d956f8eb08f9c84e0d03a5a4e762a7baaaa0331d0ed8a55f",
+      "bytes": 51497,
+      "mtime": "2026-09-10T04:45:36.969Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-tool-fs\\lib\\index.js.bak-P21"
+      ],
+      "note": "read_image accepts video files; returns {type:\"video\", url: dataURL} block; assertVideoCapableRoute gate"
+    },
+    {
+      "id": "P22",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-responses-shared.js",
+      "sha256": "9e5bd84dfe1ccbecbfe3d95900b073af8517ef495410975baa772d219aa49d83",
+      "bytes": 28887,
+      "mtime": "2026-09-10T05:10:53.779Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-responses-shared.js.bak-P22"
+      ],
+      "note": "responses wire video_url passthrough (user map + tool result; dormant for [text,image] models)"
+    },
+    {
+      "id": "P24",
+      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-token-meter\\lib\\index.js",
+      "sha256": "f55cf8fa26badcb2c8eab2d1b616270e803b90432f111a73215d639ac0861f7d",
+      "bytes": 26820,
+      "mtime": "2026-09-10T09:14:00.744Z",
+      "backups": [
+        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-token-meter\\lib\\index.js.bak-P24"
+      ],
+      "note": "estimateContent case \"video\": fixed 4096-token heuristic (was counting base64 data URL as text)"
+    }
+  ]
+}
