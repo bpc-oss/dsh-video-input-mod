@@ -1,124 +1,113 @@
 {
   "manifest": "dsh-video-patches",
-  "version": 1,
-  "generatedAt": "2026-09-10T10:10:43.120Z",
-  "appRoot": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules",
-  "appVersion": "2.0.1",
-  "note": "Registry of hand-applied kernel patches enabling native video input. If app.asar.unpacked is overwritten by an update, sha256 mismatches against this manifest identify lost patches; .bak-* siblings hold the pre-patch states for diffing. Settings-side declarations (input:[text,image,video], reasoningEfforts) live in DSH_HOME/settings.yaml and are not hashed here (hot-rewritten by the Models UI).",
+  "version": 2,
+  "generatedAt": "2026-09-12T05:44:05.402Z",
+  "appVersion": "DSH Desktop (v2.0.9 era, asar-packed patch chain P3..P32)",
+  "archive": "live app.asar (部署后与 out2 一致; 验证时以 resources/app.asar 为准)",
+  "note": "身份 = asar 内路径 + 解包字节 sha256。P26-P31 为并行会话迁移链(编号顺延)。P32=规则B视频内联预算, P33=源文件上限。",
   "verification": {
-    "e2e": "read_image(mp4) -> video block -> video_url wire -> glm/qwen answered red->green->blue; usage delta +582/+1473 tokens proves delivery",
-    "knownLimits": "b.ai glm-5.3-flash upstream pool drops video_url ~75% (retry); tokenrouter responses wire rejects video_url (InputParam serde) and completions upstream drops it 4/4 -> P20 frames only; teamoroute responses passthrough unverified"
+    "p32": "sim: keep2/drop-oldest/monotonic/frozen 全过 (tools/sim-budget.mjs)",
+    "p33": "node --check + 包内标记 grep 通过",
+    "setcheck": "unpacked 集 294/294 与 live 完全一致, 体积 delta +1481B"
   },
   "patches": [
     {
-      "id": "P17+P19b+P20+P25",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js",
-      "sha256": "e7ac3a1417e6afdbf2c45f6d01fa14b880bc21e194d6b4798ff090868f81a285",
-      "bytes": 114914,
-      "mtime": "2026-09-10T09:42:17.920Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js.bak-P20",
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js.bak-P25",
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-pi-ai\\lib\\index.js.bak-video-20260831"
-      ],
-      "note": "MODALITIES+video case (P17); containsVideo routing (P19b); capability split videoToFrames + nested threading + dispatch fix (P20); gateway body-size guard __p25OffloadOldVideos (P25)"
+      "id": "P17+P19b+P20+P32",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js",
+      "sha256": "de2e81b6f4b40e267b77f0850237dfd2c672155ef341ec0d66233b4abae4f8bf",
+      "bytes": 122776,
+      "note": "P25 keep-newest 升级为规则 B 单调预算(DSH_VIDEO_WIRE_BUDGET, 默认 950000 chars);嵌套 tool-result 视频统一处理"
     },
     {
       "id": "P17b",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-deepseek\\lib\\index.js",
-      "sha256": "2679831a6053ad55c90160a7611b169c1345a1441c5ba2e443457578e74aa1b9",
-      "bytes": 78586,
-      "mtime": "2026-09-09T16:19:43.394Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm-deepseek\\lib\\index.js.bak-video-20260831"
-      ],
-      "note": "contentParts case \"video\" -> video_url wire part (deepseek adapter)"
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js",
+      "sha256": "063a2d6984f4902cd5cfd4737e4ae8a0339a1545a004dba48cf0f2ed2a2aaaf4",
+      "bytes": 92625,
+      "note": "deepseek adapter video case"
     },
     {
       "id": "P17c+P23",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-completions.js",
-      "sha256": "8b2858ff57885b81b5f0bed24e9ba6ff78524e0b37cd01bc705cfdcfa63076d7",
-      "bytes": 59641,
-      "mtime": "2026-09-10T05:50:05.999Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-completions.js.bak-P23"
-      ],
-      "note": "video_url wire serialization (P17c); tool-result video_url collector riding follow-up user message (P23)"
-    },
-    {
-      "id": "P18",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-host-apiproxy\\lib\\index.js",
-      "sha256": "e5c85d7b767b89ee9b4b8374cc5bedde1f78dde0cf73a893903edbe48df4d165",
-      "bytes": 220300,
-      "mtime": "2026-09-09T16:19:37.740Z",
-      "backups": [],
-      "note": "promptContentPartSchema accepts {type:\"video\", mediaType, url, name} + passthrough"
-    },
-    {
-      "id": "P18b",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-conversation\\lib\\client.js",
-      "sha256": "62e26e5f018077b5d2078ceddef158ba4f8baba9661f1046b48674976747856e",
-      "bytes": 448573,
-      "mtime": "2026-09-09T16:19:41.442Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-conversation\\lib\\client.js.bak-video-20260831"
-      ],
-      "note": "frontend mediaType classify + encodeVideo (data URL video part)"
-    },
-    {
-      "id": "P18c",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-attachment\\lib\\client.js",
-      "sha256": "995c52783a201a85164df4e9287bfab1215381dc36aa1991c371ff0b537c81d7",
-      "bytes": 35491,
-      "mtime": "2026-09-09T16:19:47.424Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-client-ui-attachment\\lib\\client.js.bak-video-20260831"
-      ],
-      "note": "attachment rail <video> thumbnail"
-    },
-    {
-      "id": "P19",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm\\lib\\index.js",
-      "sha256": "ac191646d81bcdebbffb846b0b7a4213df4ec45b0b177bee40100b1cd53b59a5",
-      "bytes": 71640,
-      "mtime": "2026-09-09T16:19:42.702Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-llm\\lib\\index.js.bak-video-20260831"
-      ],
-      "note": "contentHasVideo + export (nested tool-result detection)"
-    },
-    {
-      "id": "P21",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-tool-fs\\lib\\index.js",
-      "sha256": "0bcf29b0a432b4f0d956f8eb08f9c84e0d03a5a4e762a7baaaa0331d0ed8a55f",
-      "bytes": 51497,
-      "mtime": "2026-09-10T04:45:36.969Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-tool-fs\\lib\\index.js.bak-P21"
-      ],
-      "note": "read_image accepts video files; returns {type:\"video\", url: dataURL} block; assertVideoCapableRoute gate"
+      "file": "app.asar!node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js",
+      "sha256": "4dbd4ea0c7245db025c1598950c3089f76483451261c48cc15b37d2ec55bf725",
+      "bytes": 65461,
+      "note": "wire video_url + 工具结果媒体搭后续 user 消息"
     },
     {
       "id": "P22",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-responses-shared.js",
-      "sha256": "9e5bd84dfe1ccbecbfe3d95900b073af8517ef495410975baa772d219aa49d83",
-      "bytes": 28887,
-      "mtime": "2026-09-10T05:10:53.779Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@earendil-works\\pi-ai\\dist\\api\\openai-responses-shared.js.bak-P22"
-      ],
-      "note": "responses wire video_url passthrough (user map + tool result; dormant for [text,image] models)"
+      "file": "app.asar!node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js",
+      "sha256": "da38e4abfbea1ae597f13eb7cec56ccf1474ecae4915b9f6b6a0fed1a2dd18d2",
+      "bytes": 31785,
+      "note": "responses wire 视频透传(实测端点拒收→保持休眠,video provider 声明须去掉)"
+    },
+    {
+      "id": "P7+P9",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js",
+      "sha256": "a3aa75cb22a5dfd2b2b990dbbf0f4ecb7b1e4ed54a8f3ebe65a8536064662eaf",
+      "bytes": 115024,
+      "note": "并行链(v2.0.9 迁移)"
+    },
+    {
+      "id": "P9+P18",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-api-session-controller/lib/typert.host.js",
+      "sha256": "826022242e4c05f0bcdf73d60371953cfd6266a29c1c9241b155fa01d5b83dd7",
+      "bytes": 158513,
+      "note": "apiproxy schema video 臂(P18 现居此包)"
+    },
+    {
+      "id": "P13",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-api-gateway/lib/index.js",
+      "sha256": "b21375356dffe6e664b5b4a3b337089a68b0a5c70c25cbe5c81f6960721c6a22",
+      "bytes": 50572,
+      "note": "并行链"
+    },
+    {
+      "id": "P18b",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-client-ui-conversation/lib/client.js",
+      "sha256": "a7b6698c1b29bbbe172314adfe3ea185ad3069c1445c56f7e8075e822c2d8472",
+      "bytes": 648469,
+      "note": "前端 encodeVideo"
+    },
+    {
+      "id": "P18c",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-client-ui-attachment/lib/client.js",
+      "sha256": "bb6f239e2c7c51f41b157a76f0b4eeaf94eb7dbdd2deb954bbc198ba5b043143",
+      "bytes": 45927,
+      "note": "前端视频缩略"
+    },
+    {
+      "id": "P19",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-llm/lib/index.js",
+      "sha256": "de9dab5a0dcd9364406354a789790713f36cc56bade0c4736f4b0749c714d3fa",
+      "bytes": 100210,
+      "note": "contentHasVideo"
+    },
+    {
+      "id": "P21+P33",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-tool-fs/lib/index.js",
+      "sha256": "e6c1098799b20fef3e01555e316df48da66c09e50ba29ee82213e7433522aacf",
+      "bytes": 53792,
+      "note": "read_image 视频块 + 1.2MB 源文件硬上限(DSH_VIDEO_MAX_FILE_BYTES)+ -c copy 分段指引"
     },
     {
       "id": "P24",
-      "file": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-token-meter\\lib\\index.js",
-      "sha256": "f55cf8fa26badcb2c8eab2d1b616270e803b90432f111a73215d639ac0861f7d",
-      "bytes": 26820,
-      "mtime": "2026-09-10T09:14:00.744Z",
-      "backups": [
-        "C:\\Users\\Administrator\\AppData\\Local\\Programs\\DSH Desktop\\resources\\app.asar.unpacked\\node_modules\\@deepseek-ai\\dsh-token-meter\\lib\\index.js.bak-P24"
-      ],
-      "note": "estimateContent case \"video\": fixed 4096-token heuristic (was counting base64 data URL as text)"
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-token-meter/lib/index.js",
+      "sha256": "9ca05349b7e6d6b2d66ef55494d5a1cc492792e3c07e873d253c1a6064f49551",
+      "bytes": 31351,
+      "note": "video 块固定 4096 计价"
+    },
+    {
+      "id": "P18x",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-attachment/lib/index.js",
+      "sha256": "a145e2bc873a9f21cd2afe184b68763c218c5c8d67407edf00fafc08db038a07",
+      "bytes": 14301,
+      "note": "并行链"
+    },
+    {
+      "id": "P27",
+      "file": "app.asar!node_modules/@deepseek-ai/dsh-session-format-v2-to-v3/lib/index.js",
+      "sha256": "00ad8d0dca586cb512bc0c99d557ce09d60d9629364a59bb87712b25c62261da",
+      "bytes": 36189,
+      "note": "并行链(v2→v3 迁移)"
     }
   ]
 }

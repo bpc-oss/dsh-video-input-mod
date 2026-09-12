@@ -71,7 +71,7 @@ E2E 基准（2026-09-10，DSH 2.0.1）：glm-5.3-flash input 2940→3522（+582�
 
 ## 2026-09-12 现状（DSH v2.0.9 / asar 时代）
 
-补丁编号 P26–P31 已被 v2.0.9 迁移链占用；本链新增 **P32（规则 B 视频内联预算）/ P33（源文件 1.2MB 硬上限 + `-c copy` 无损分段指引）**，设计与独立审查结论见 `docs/DESIGN-P32-P33.md`（含非单调反例、keep/冻结/单调性验证证据）。补丁现以"从 live app.asar 提取 → 打补丁 → @electron/asar 重打包"流程落地（不再是 unpacked 直改），`tools/stage-p32-p33.cjs` 可复现暂存与验证；**部署待批准**。
+补丁编号 P26–P31 已被 v2.0.9 迁移链占用；本链新增 **P32（规则 B 视频内联预算）/ P33（源文件 1.2MB 硬上限 + `-c copy` 无损分段指引）**，设计与独立审查结论见 `docs/DESIGN-P32-P33.md`（含非单调反例、keep/冻结/单调性验证证据）。补丁现以"从 live app.asar 提取 → 打补丁 → @electron/asar 重打包"流程落地（不再是 unpacked 直改），`tools/stage-p32-p33.cjs` 可复现暂存与验证；`tools/regen-manifest.mjs` 重生成 asar 时代 manifest（argv 可指向 live/out2 两态做双向校验）。
 ## 仓库结构
 
 ```
