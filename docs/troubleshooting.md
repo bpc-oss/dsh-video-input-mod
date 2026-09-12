@@ -120,3 +120,11 @@ session 日志挖 base64 → 自己 ffprobe/ffmpeg 解码 → 给出**正确**�
 ## 11. 同一 API key 的会话互相污染 429/缓存
 
 多会话（+探针流量）共享 `BAI_API_KEY` 时，账号级 Concurrency/RPM 配额互抢：一个会话的 429 风暴会把另一个会话的重试推上冷节点（缓存 per-node）。诊断"缓存丢失"时先数**同 key 总请求率**，再谈单会话行为。重度探针时段避开活跃 QA。
+## 12. settings.yaml 的 retryPolicy 必须嵌套 backoff（事故案例：炸掉全部 provider）
+
+**症状**：给 bai 加 `retryPolicy: {mode: always, initialDelayMs: 2000, ...}`（平铺键）后，**设置树热重载发布失败 → 所有 provider 被拒载 → 自定义模型集体消失**。
+**根因**：YAML 形状是 `retryPolicy: {mode, backoff: {initialDelayMs, maxDelayMs, jitterRatio}}`——从内核 zod schema/重试助手代码 grep 到的字段名 ≠ settings 层键形。
+**规则**：
+1. 改 settings.yaml 后**必须**验证：`%APPDATA%\DSH Desktop\logs\dsh-<date>.error.log` 尾部零新增 + 模型下拉仍在；发布失败会殃及**所有** provider，不只你改的那个
+2. `streamIdleTimeoutMs` 下限：bai 思考模型首包实测可达 61s——30s 会误杀，90s 是用户定的安全值（零字节挂死 300s→90s 已砍 3.3 倍浪费）
+3. 同 key 多会话+探针共享并发配额（见 #11）；改退避参数需重启生效（路由启动时烘焙，**retryPolicy 不热更**，但**非法键会立即毒死热重载**——两个半程都要记住）
