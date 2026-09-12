@@ -78,7 +78,7 @@ E2E 基准（2026-09-10，DSH 2.0.1）：glm-5.3-flash input 2940→3522（+582�
 **2026-09-12 P34/P35（毒视频熔断 + 2s 时长地板）**：zcode QA 会话被 1.66s 毒丸砖化（0 成功/22 失败）驱动新增；设计见 docs/DESIGN-P34-P35.md，功能验证 keep1/swap/survive + mvhd 4.00s/1.66s 全过，out3 重打包 294/294 集校验通过，部署 watcher 已挂（pre-p34 备份），重启后 zcode 会话自愈（首撞 400 → 熔断降级 → 次新顶上，实测 14:54 恢复成功）。
 
 **P36/P37 事故复盘**：P34/P35 部署曾因锚点子串吞掉 async 关键字导致 ESM 编译崩溃（`node --check` 漏检）；P36 恢复 async、P37 使 P35 时长地板真正生效（dur 由 Promise 变数字），out4 已验证并挂 watcher 随下次重启生效。教训与修复版重放脚本见 docs/DESIGN-P34-P35.md + tools/stage-p34-p37.cjs（锚点全行语义、.mjs 强制 ESM 校验、源树自动回写）。
-**P40（请求体 gzip，2026-09-12）**：qwen 时代 QA 会话的 read-body 失败/5min 超时根因 = 巨大 plain body 的上传耗时（2.6MB ≈ 41s 实测），b.ai 网关完整支持 `content-encoding: gzip`（3.72MB 实测解压处理）。pi-ai 的 SDK 客户端 fetch 注入 gzip 包装器（白名单 api.b.ai、阈值 256KB、env 可调、异常回退明文）。out8 已验证挂 watcher；设计/证据见 docs/DESIGN-P40.md，重放脚本 tools/stage-p40.cjs。
+**P40（请求体 gzip，2026-09-12）**：qwen 时代 QA 会话的 read-body 失败/5min 超时根因 = 巨大 plain body 的上传耗时（2.6MB ≈ 41s 实测），b.ai 网关完整支持 `content-encoding: gzip`（3.72MB 实测解压处理）。pi-ai 的 SDK 客户端 fetch 注入 gzip 包装器（白名单 api.b.ai、阈值 256KB、env 可调、异常回退明文）。out8 曾部署，**已回滚**——真实会话数据显示 read-body 失败率升 5 倍（合成测试未能复现，教训：传输层优化必须用真实流量验证）。详见 docs/DESIGN-P40.md 头部状态注记。
 ## 仓库结构
 
 ```
