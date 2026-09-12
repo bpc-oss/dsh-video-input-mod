@@ -108,3 +108,15 @@ session 日志挖 base64 → 自己 ffprobe/ffmpeg 解码 → 给出**正确**�
 - 看模型是否引用 P20 标记 `frame i/n`（引用了 = 抽帧路成功）
 - usage 跳变量级（+500 ≈ 4KB 视频摄入；+100 ≈ 只有文本）
 **测试视频识别类问题时，prompt 必须显式禁止工具使用。**
+
+---
+
+## 10. 会话 ctx 超过 contextWindow 时，压缩请求被 bai 拒绝（事故案例）
+
+**症状**：`compaction/end` 反复 `400: max_tokens must be greater than 2`（×37），自动压缩静默死亡，上下文无界增长。
+**机制**：LLM 层按 `contextWindow − 已用 tokens` 钳 max_tokens；ctx 超窗时钳成 ≤2；**bai 的校验要求 max_tokens>2**（OpenAI 接受 1），于是 doomed 请求 + 无限重试。
+**教训**：① 调小 contextWindow 前必须先看所有活跃会话的当前 ctx——本案例是误操作改 300K 时一个 566K 会话当场瘫痪；② DSH 对"剩余预算≤0"的本地情况应直接报 overflow 而不是发必死请求（潜在上游 bug，未修）。
+
+## 11. 同一 API key 的会话互相污染 429/缓存
+
+多会话（+探针流量）共享 `BAI_API_KEY` 时，账号级 Concurrency/RPM 配额互抢：一个会话的 429 风暴会把另一个会话的重试推上冷节点（缓存 per-node）。诊断"缓存丢失"时先数**同 key 总请求率**，再谈单会话行为。重度探针时段避开活跃 QA。
