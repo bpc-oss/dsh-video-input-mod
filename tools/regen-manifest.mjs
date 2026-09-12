@@ -15,6 +15,7 @@ const entries = [
   ['P17b', 'node_modules/@deepseek-ai/dsh-llm-deepseek/lib/index.js', 'deepseek adapter video case'],
   ['P17c+P23', 'node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js', 'wire video_url + 工具结果媒体搭后续 user 消息'],
   ['P22', 'node_modules/@earendil-works/pi-ai/dist/api/openai-responses-shared.js', 'responses wire 视频透传(实测端点拒收→保持休眠,video provider 声明须去掉)'],
+  ['P40', 'node_modules/@earendil-works/pi-ai/dist/utils/p40-gzip-fetch.js', '请求体 gzip(白名单 api.b.ai, 阈值 256KB, env DSH_GZIP_MIN_BYTES/DSH_GZIP_HOSTS); 注入于 openai-completions.js 与 openai-responses.js 的客户端 fetch'],
   ['P7+P9', 'node_modules/@deepseek-ai/dsh-api-session-controller/lib/index.js', '并行链(v2.0.9 迁移)'],
   ['P9+P18', 'node_modules/@deepseek-ai/dsh-api-session-controller/lib/typert.host.js', 'apiproxy schema video 臂(P18 现居此包)'],
   ['P13', 'node_modules/@deepseek-ai/dsh-api-gateway/lib/index.js', '并行链'],

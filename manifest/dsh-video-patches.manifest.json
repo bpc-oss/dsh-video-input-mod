@@ -1,7 +1,7 @@
 {
   "manifest": "dsh-video-patches",
   "version": 2,
-  "generatedAt": "2026-09-12T07:05:21.150Z",
+  "generatedAt": "2026-09-12T10:04:27.715Z",
   "appVersion": "DSH Desktop (v2.0.9 era, asar-packed patch chain P3..P32)",
   "archive": "live app.asar (部署后与 out2 一致; 验证时以 resources/app.asar 为准)",
   "note": "身份 = asar 内路径 + 解包字节 sha256。P26-P31 为并行会话迁移链(编号顺延)。P32=规则B视频内联预算, P33=源文件上限。",
@@ -28,8 +28,8 @@
     {
       "id": "P17c+P23",
       "file": "app.asar!node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js",
-      "sha256": "4dbd4ea0c7245db025c1598950c3089f76483451261c48cc15b37d2ec55bf725",
-      "bytes": 65461,
+      "sha256": "3a426ec9bfbb42fb8462ac552538c14b35834bd7ed38bc067fd9b40090b7026e",
+      "bytes": 65533,
       "note": "wire video_url + 工具结果媒体搭后续 user 消息"
     },
     {
@@ -38,6 +38,13 @@
       "sha256": "da38e4abfbea1ae597f13eb7cec56ccf1474ecae4915b9f6b6a0fed1a2dd18d2",
       "bytes": 31785,
       "note": "responses wire 视频透传(实测端点拒收→保持休眠,video provider 声明须去掉)"
+    },
+    {
+      "id": "P40",
+      "file": "app.asar!node_modules/@earendil-works/pi-ai/dist/utils/p40-gzip-fetch.js",
+      "sha256": "841f6768cc0e30439378534275d05857d6448362293c75c3ee45e7b0a2b872a0",
+      "bytes": 1682,
+      "note": "请求体 gzip(白名单 api.b.ai, 阈值 256KB, env DSH_GZIP_MIN_BYTES/DSH_GZIP_HOSTS); 注入于 openai-completions.js 与 openai-responses.js 的客户端 fetch"
     },
     {
       "id": "P7+P9",
@@ -84,8 +91,8 @@
     {
       "id": "P21+P33",
       "file": "app.asar!node_modules/@deepseek-ai/dsh-tool-fs/lib/index.js",
-      "sha256": "a5905b104ffbbe3222c3ee4e733323d8e52183e7e30e6b355d9b2e9b43872ada",
-      "bytes": 55090,
+      "sha256": "9723b32d453b9b5c19bf39e032754a964a88eb4167f04baf57fda6baac682043",
+      "bytes": 55341,
       "note": "read_image 视频块 + 1.2MB 源文件硬上限(DSH_VIDEO_MAX_FILE_BYTES)+ -c copy 分段指引"
     },
     {
