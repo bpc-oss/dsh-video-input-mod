@@ -1,7 +1,7 @@
 {
   "manifest": "dsh-video-patches",
   "version": 2,
-  "generatedAt": "2026-09-12T06:28:54.961Z",
+  "generatedAt": "2026-09-12T07:05:21.150Z",
   "appVersion": "DSH Desktop (v2.0.9 era, asar-packed patch chain P3..P32)",
   "archive": "live app.asar (部署后与 out2 一致; 验证时以 resources/app.asar 为准)",
   "note": "身份 = asar 内路径 + 解包字节 sha256。P26-P31 为并行会话迁移链(编号顺延)。P32=规则B视频内联预算, P33=源文件上限。",
@@ -84,7 +84,7 @@
     {
       "id": "P21+P33",
       "file": "app.asar!node_modules/@deepseek-ai/dsh-tool-fs/lib/index.js",
-      "sha256": "20a2d33665e968e9a4b09b91d9404a9d1442d80c647cf0dcef77cdb818a20b50",
+      "sha256": "a5905b104ffbbe3222c3ee4e733323d8e52183e7e30e6b355d9b2e9b43872ada",
       "bytes": 55090,
       "note": "read_image 视频块 + 1.2MB 源文件硬上限(DSH_VIDEO_MAX_FILE_BYTES)+ -c copy 分段指引"
     },

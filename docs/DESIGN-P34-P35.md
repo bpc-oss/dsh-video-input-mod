@@ -35,3 +35,15 @@ repack:       unpacked 集 294/294 精确一致, delta +3066B, 包内标记全�
 ## 质量红线复核
 
 P34/P35 均不改动任何送达模型的字节：保留块原样、被拒内容只发生在**入口拒绝**与**降级占位**（既有 P25/P32 语义）。
+
+
+## 事故与修复（P36/P37，2026-09-12 14:29-14:47）
+
+**P34/P35 部署后应用崩溃进恢复模式**。根因（并行会话修复者定位）：P35 插入锚点用了裸 'function assertVideoCapableRoute(' —— 它是 'async function assertVideoCapableRoute(' 的子串，replace 把 async 吞进 helper 头部，守卫函数失去 async 而体内有 await → **ESM 编译期语法错误** → 插件树加载失败。
+
+三条教训（已固化进 tools/stage-p34-p37.cjs）：
+1. **锚点必须全行语义**：改用 async function 前缀 + 插入后双向断言（helper 无 async、守卫保留 async）
+2. **node --check 对 ESM 不可信**（实测漏检 await-in-non-async）：验证一律复制为 .mjs 强制 ESM parse（或 vm.SourceTextModule）
+3. **源树漂移**：补丁只进装机 asar 会被下次重打包管线吞掉 —— P37 起部署脚本自动回写 runtime/v209-patched-tree
+
+**P37**：helper 恢复同步（dur 从 Promise 变回数字，P35 时长地板真正生效：1.66s 拒 / 4.0s 放实测过）。out4 已打包并 294/294 集校验 + 哈希闭环 + ESM 双文件通过；watcher 挂机等下次自然重启，无需专门操作。
