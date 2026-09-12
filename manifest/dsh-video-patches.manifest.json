@@ -1,7 +1,7 @@
 {
   "manifest": "dsh-video-patches",
   "version": 2,
-  "generatedAt": "2026-09-12T05:44:05.402Z",
+  "generatedAt": "2026-09-12T05:48:36.032Z",
   "appVersion": "DSH Desktop (v2.0.9 era, asar-packed patch chain P3..P32)",
   "archive": "live app.asar (部署后与 out2 一致; 验证时以 resources/app.asar 为准)",
   "note": "身份 = asar 内路径 + 解包字节 sha256。P26-P31 为并行会话迁移链(编号顺延)。P32=规则B视频内联预算, P33=源文件上限。",

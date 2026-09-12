@@ -72,6 +72,8 @@ E2E 基准（2026-09-10，DSH 2.0.1）：glm-5.3-flash input 2940→3522（+582�
 ## 2026-09-12 现状（DSH v2.0.9 / asar 时代）
 
 补丁编号 P26–P31 已被 v2.0.9 迁移链占用；本链新增 **P32（规则 B 视频内联预算）/ P33（源文件 1.2MB 硬上限 + `-c copy` 无损分段指引）**，设计与独立审查结论见 `docs/DESIGN-P32-P33.md`（含非单调反例、keep/冻结/单调性验证证据）。补丁现以"从 live app.asar 提取 → 打补丁 → @electron/asar 重打包"流程落地（不再是 unpacked 直改），`tools/stage-p32-p33.cjs` 可复现暂存与验证；`tools/regen-manifest.mjs` 重生成 asar 时代 manifest（argv 可指向 live/out2 两态做双向校验）。
+
+**2026-09-12 13:46 已部署**（watcher 自动备份 `app.asar.pre-p32-20260912` → 换包 → 标记验证通过）。线上实测：read_image 磁盘视频 → 5 帧带时间戳送达模型（蓝→黄判定正确，P23 收集器工作）；1880KB 文件触发 P33 显式拒绝（附 `-c copy` 分段指引）。回滚 = 还原备份文件。
 ## 仓库结构
 
 ```
